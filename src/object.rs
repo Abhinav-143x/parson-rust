@@ -78,6 +78,11 @@ impl Object {
         }
     }
 
+    /// Alias for `get_dotted`, returning nested property or `None`.
+    pub fn dotget(&self, dotkey: &str) -> Option<&Value> {
+        self.get_dotted(dotkey)
+    }
+
     /// Iterate over key-value pairs.
     pub fn iter(&self) -> std::slice::Iter<'_, (String, Value)> {
         self.0.iter()

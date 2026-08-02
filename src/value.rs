@@ -62,6 +62,11 @@ impl Value {
         }
     }
 
+    /// Alias for `as_number`, returning numeric payload or `None`.
+    pub fn as_f64(&self) -> Option<f64> {
+        self.as_number()
+    }
+
     /// Returns a reference to the string payload, or `None`.
     pub fn as_str(&self) -> Option<&str> {
         if let Value::String(s) = self {

@@ -5,7 +5,7 @@ use crate::Value;
 use std::str::Chars;
 use std::iter::Peekable;
 
-const MAX_NESTING_DEPTH: usize = 512;
+const MAX_NESTING_DEPTH: usize = 2048;
 
 struct Parser<'a> {
     chars: Peekable<Chars<'a>>,
@@ -209,8 +209,8 @@ impl<'a> Parser<'a> {
         }
 
         match s.parse::<f64>() {
-            Ok(num) => Ok(Value::Number(num)),
-            Err(_) => Err(ParsonError::Parse),
+            Ok(num) if !num.is_infinite() => Ok(Value::Number(num)),
+            _ => Err(ParsonError::Parse),
         }
     }
 
@@ -236,7 +236,9 @@ impl<'a> Parser<'a> {
                 Some(',') => {
                     self.skip_whitespace_and_comments()?;
                     if self.chars.peek() == Some(&']') {
-                        return Err(ParsonError::Parse);
+                        self.chars.next();
+                        self.depth -= 1;
+                        return Ok(arr);
                     }
                 }
                 Some(']') => {
@@ -273,13 +275,18 @@ impl<'a> Parser<'a> {
                 return Err(ParsonError::Parse);
             }
             let val = self.parse_value()?;
+            if obj.get(&key).is_some() {
+                return Err(ParsonError::Parse);
+            }
             obj.set(key, val);
             self.skip_whitespace_and_comments()?;
             match self.chars.next() {
                 Some(',') => {
                     self.skip_whitespace_and_comments()?;
                     if self.chars.peek() == Some(&'}') {
-                        return Err(ParsonError::Parse);
+                        self.chars.next();
+                        self.depth -= 1;
+                        return Ok(obj);
                     }
                 }
                 Some('}') => {
@@ -353,7 +360,7 @@ mod tests {
 
     #[test]
     fn test_invalid_syntax() {
-        assert_eq!(parse_string("[1, 2,]"), Err(ParsonError::Parse)); // trailing comma
+        assert!(parse_string("[1, 2,]").is_ok()); // trailing comma allowed in parson parity
         assert_eq!(parse_string("{ \"a\": }"), Err(ParsonError::Parse));
         assert_eq!(parse_string("null trailing"), Err(ParsonError::Parse));
     }

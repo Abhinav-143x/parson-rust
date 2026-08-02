@@ -1,0 +1,21 @@
+[package]
+name = "parson_port"
+version = "0.1.0"
+edition = "2021"
+description = "Idiomatic Rust port of kgabis/parson — a lightweight JSON parser"
+license = "MIT"
+
+[lib]
+name = "parson_port"
+path = "src/lib.rs"
+
+[[bin]]
+name = "fuzzer"
+path = "src/bin/fuzzer.rs"
+
+[dependencies]
+
+[dev-dependencies]
+
+[profile.release]
+opt-level = 3

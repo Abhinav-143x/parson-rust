@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 pub mod value;
 pub mod array;
 pub mod object;

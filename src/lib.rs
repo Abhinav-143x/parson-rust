@@ -2,10 +2,12 @@ pub mod value;
 pub mod array;
 pub mod object;
 pub mod parser;
+pub mod serializer;
 
 pub use value::{Value, ParsonError};
 pub use array::Array;
 pub use object::Object;
+pub use serializer::{serialize_to_string, serialize_to_string_pretty};
 
 /// Parse a JSON string. Returns the root `Value` or a `ParsonError`.
 ///

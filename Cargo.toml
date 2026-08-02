@@ -19,3 +19,6 @@ path = "src/bin/fuzzer.rs"
 
 [profile.release]
 opt-level = 3
+
+# Keep this crate independent from the root workspace
+[workspace]

@@ -1,0 +1,205 @@
+:root {
+    --bg: #0d1117;
+    --panel-bg: rgba(22, 27, 34, 0.7);
+    --border: #30363d;
+    --text: #c9d1d9;
+    --primary: #58a6ff;
+    --primary-hover: #3182ce;
+    --success: #2ea043;
+    --error: #f85149;
+    --font-sans: 'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px;
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* Beautiful dynamic background mesh gradient */
+.background-mesh {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: 
+        radial-gradient(circle at 15% 50%, rgba(88, 166, 255, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 85% 30%, rgba(46, 160, 67, 0.06) 0%, transparent 50%);
+    z-index: -1;
+    pointer-events: none;
+}
+
+.container {
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+header {
+    text-align: center;
+    animation: fadeInDown 0.8s ease-out;
+}
+
+h1 {
+    font-size: 3.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #fff, #58a6ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    font-size: 1.2rem;
+    color: #8b949e;
+    margin-bottom: 20px;
+}
+
+.badges {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.badge {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.badge.safe {
+    background: rgba(46, 160, 67, 0.15);
+    color: var(--success);
+    border: 1px solid rgba(46, 160, 67, 0.3);
+}
+
+.badge.wasm {
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--primary);
+    border: 1px solid rgba(88, 166, 255, 0.3);
+}
+
+.editor-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
+    animation: fadeIn 1s ease-out 0.2s both;
+}
+
+@media (max-width: 800px) {
+    .editor-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.panel {
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.panel:hover {
+    box-shadow: 0 8px 32px rgba(88, 166, 255, 0.1);
+    border-color: rgba(88, 166, 255, 0.4);
+}
+
+.panel-header {
+    background: rgba(13, 17, 23, 0.8);
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #f0f6fc;
+}
+
+.btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: var(--font-sans);
+}
+
+.btn:hover {
+    background: var(--primary-hover);
+    box-shadow: 0 0 15px rgba(88, 166, 255, 0.4);
+}
+
+textarea, .code-block {
+    flex-grow: 1;
+    width: 100%;
+    min-height: 400px;
+    padding: 20px;
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    background: transparent;
+    color: var(--text);
+    border: none;
+    resize: vertical;
+}
+
+textarea:focus {
+    outline: none;
+}
+
+.code-block {
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.error-text {
+    color: var(--error);
+}
+
+footer {
+    text-align: center;
+    color: #8b949e;
+    font-size: 0.9rem;
+    margin-top: 20px;
+}
+
+/* Animations */
+@keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}

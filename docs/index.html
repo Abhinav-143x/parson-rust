@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parson-Rust Live Demo | Safe JSON Parsing</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="background-mesh"></div>
+    
+    <div class="container">
+        <header>
+            <h1>Parson-Rust Engine</h1>
+            <p class="subtitle">100% Memory Safe. 3x Faster. Zero Trade-offs.</p>
+            <div class="badges">
+                <span class="badge safe">#![forbid(unsafe_code)]</span>
+                <span class="badge wasm">WebAssembly Powered</span>
+            </div>
+        </header>
+
+        <div class="editor-grid">
+            <div class="panel">
+                <div class="panel-header">
+                    <span>Input (Raw JSON)</span>
+                    <button id="format-btn" class="btn primary">Parse with Safe Rust 🚀</button>
+                </div>
+                <textarea id="json-input" spellcheck="false" placeholder="Enter JSON here...">
+{
+  "project": "parson-rust",
+  "status": "victory",
+  "speedup": 2.999,
+  "safe": true,
+  "unsafe_blocks": 0
+}
+                </textarea>
+            </div>
+
+            <div class="panel output-panel">
+                <div class="panel-header">
+                    <span>Safe Rust AST Output</span>
+                </div>
+                <pre id="json-output" class="code-block"></pre>
+            </div>
+        </div>
+        
+        <footer>
+            Built for the Code Resurrection 2026 Hackathon
+        </footer>
+    </div>
+
+    <script type="module">
+        import init, { parse_and_format } from './pkg/parson_port.js';
+
+        async function run() {
+            // Initialize the WebAssembly module
+            await init();
+
+            const inputArea = document.getElementById('json-input');
+            const outputArea = document.getElementById('json-output');
+            const btn = document.getElementById('format-btn');
+
+            const handleParse = () => {
+                const input = inputArea.value;
+                try {
+                    // Call the Rust function compiled to Wasm
+                    const result = parse_and_format(input);
+                    outputArea.textContent = result;
+                    if (result.startsWith("Error")) {
+                        outputArea.classList.add("error-text");
+                    } else {
+                        outputArea.classList.remove("error-text");
+                    }
+                } catch (e) {
+                    outputArea.textContent = "Fatal Wasm Error: " + e;
+                    outputArea.classList.add("error-text");
+                }
+            };
+
+            // Parse on button click
+            btn.addEventListener('click', () => {
+                btn.style.transform = 'scale(0.95)';
+                setTimeout(() => btn.style.transform = 'scale(1)', 100);
+                handleParse();
+            });
+
+            // Parse immediately on load
+            handleParse();
+        }
+
+        run();
+    </script>
+</body>
+</html>

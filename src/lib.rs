@@ -6,6 +6,9 @@ pub mod parser;
 pub mod serializer;
 pub mod validate;
 
+#[cfg(target_arch = "wasm32")]
+pub mod wasm;
+
 pub use value::{Value, ParsonError};
 pub use array::Array;
 pub use object::Object;

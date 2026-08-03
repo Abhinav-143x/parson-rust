@@ -10,13 +10,15 @@ const MAX_NESTING_DEPTH: usize = 2048;
 struct Parser<'a> {
     chars: Peekable<Chars<'a>>,
     depth: usize,
+    allow_comments: bool,
 }
 
 impl<'a> Parser<'a> {
-    fn new(input: &'a str) -> Self {
+    fn new(input: &'a str, allow_comments: bool) -> Self {
         Self {
             chars: input.chars().peekable(),
             depth: 0,
+            allow_comments,
         }
     }
 
@@ -26,7 +28,7 @@ impl<'a> Parser<'a> {
                 Some(&' ') | Some(&'\t') | Some(&'\r') | Some(&'\n') => {
                     self.chars.next();
                 }
-                Some(&'/') => {
+                Some(&'/') if self.allow_comments => {
                     self.chars.next();
                     match self.chars.peek() {
                         Some(&'/') => {
@@ -300,7 +302,17 @@ impl<'a> Parser<'a> {
 }
 
 pub fn parse_string(s: &str) -> Result<Value, ParsonError> {
-    let mut parser = Parser::new(s);
+    let mut parser = Parser::new(s, false);
+    let value = parser.parse_value()?;
+    parser.skip_whitespace_and_comments()?;
+    if parser.chars.next().is_some() {
+        return Err(ParsonError::Parse);
+    }
+    Ok(value)
+}
+
+pub fn parse_string_with_comments(s: &str) -> Result<Value, ParsonError> {
+    let mut parser = Parser::new(s, true);
     let value = parser.parse_value()?;
     parser.skip_whitespace_and_comments()?;
     if parser.chars.next().is_some() {
@@ -354,8 +366,14 @@ mod tests {
         }
         /* Ending comment */
         "#;
-        let res = parse_string(json);
+        let res = parse_string_with_comments(json);
         assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_trailing_comment_rejected_in_plain_parser() {
+        assert_eq!(parse_string("{\"a\":1}//comment"), Err(ParsonError::Parse));
+        assert!(parse_string_with_comments("{\"a\":1}//comment").is_ok());
     }
 
     #[test]

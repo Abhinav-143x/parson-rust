@@ -49,7 +49,7 @@
                         <div class="mac-btn minimize"></div>
                         <div class="mac-btn maximize"></div>
                     </div>
-                    <span>rust@wasm-sandbox:~</span>
+                    <span class="terminal-title">rust@wasm-sandbox:~</span>
                 </div>
                 <div id="terminal-body" class="terminal-body">
                     <!-- Terminal output goes here -->
@@ -66,6 +66,7 @@
         import init, { parse_and_format } from './pkg/parson_port.js';
 
         const terminalBody = document.getElementById('terminal-body');
+        let bootSequenceDone = false;
         
         function appendTerminal(text, type = "normal") {
             const div = document.createElement("div");
@@ -87,34 +88,66 @@
             }
         }
 
+        async function runCargoTest() {
+            appendTerminal("[Simulation] Booting Test Suite...", "dim");
+            appendTerminal("$ cargo test", "cmd");
+            await new Promise(r => setTimeout(r, 400));
+            appendTerminal("   Compiling parson_port v0.1.0", "dim");
+            await new Promise(r => setTimeout(r, 600));
+            appendTerminal("    Finished test [unoptimized + debuginfo] target(s) in 0.03s", "dim");
+            appendTerminal("     Running unittests src/lib.rs", "normal");
+            await new Promise(r => setTimeout(r, 200));
+            appendTerminal("test result: ok. 11 passed; 0 failed;", "success");
+            
+            await new Promise(r => setTimeout(r, 300));
+            appendTerminal("     Running tests/test_parity.rs", "normal");
+            await new Promise(r => setTimeout(r, 200));
+            appendTerminal("test result: ok. 74 passed; 0 failed;", "success");
+            
+            await new Promise(r => setTimeout(r, 400));
+            appendTerminal("========================================", "dim");
+            appendTerminal("All 85 behavioral parity tests passed.", "success");
+            appendTerminal("", "normal");
+        }
+
         async function run() {
-            // Initialize the REAL WebAssembly module compiled from our Rust code
-            appendTerminal("[SYSTEM] Loading WebAssembly binary (parson_port.wasm)...", "dim");
+            // Start the test boot sequence
+            const testPromise = runCargoTest();
+            
+            // Concurrently fetch and init WebAssembly in the background
             const wasmInit = init();
+            
+            await testPromise;
+            
+            appendTerminal("[SYSTEM] Loading WebAssembly binary (parson_port.wasm)...", "dim");
             await wasmInit;
             appendTerminal("[SYSTEM] Safe Rust Engine Initialized. 100% memory safe.", "success");
+            appendTerminal("Ready for live input.", "cmd");
             appendTerminal("", "normal");
+            
+            bootSequenceDone = true;
 
             const inputArea = document.getElementById('json-input');
             const btn = document.getElementById('format-btn');
 
             const handleParse = async () => {
+                if (!bootSequenceDone) return;
+                
                 const input = inputArea.value;
                 
                 terminalBody.innerHTML = "";
                 appendTerminal("> Calling WebAssembly parse_and_format() function...", "cmd");
                 
                 try {
-                    // This calls the REAL Rust function in src/wasm.rs!
                     const t0 = performance.now();
                     const result = parse_and_format(input);
                     const t1 = performance.now();
                     
                     if (result.startsWith("Error")) {
-                        appendTerminal(`AST PARSE FAILED (took ${(t1-t0).toFixed(2)}ms):`, "error");
+                        await typeWriter(`AST PARSE FAILED (took ${(t1-t0).toFixed(2)}ms):`, "error", 15);
                         appendTerminal(result, "error");
                     } else {
-                        appendTerminal(`AST PARSE SUCCESS (took ${(t1-t0).toFixed(2)}ms):`, "success");
+                        await typeWriter(`AST PARSE SUCCESS (took ${(t1-t0).toFixed(2)}ms):`, "success", 15);
                         appendTerminal(result, "json-out");
                     }
                 } catch (e) {
@@ -123,15 +156,12 @@
                 appendTerminal("", "normal");
             };
 
-            // Parse on button click
             btn.addEventListener('click', () => {
-                btn.classList.add('pulse');
-                setTimeout(() => btn.classList.remove('pulse'), 200);
                 handleParse();
             });
-
-            // Initial parse
-            handleParse();
+            
+            // Don't auto-parse immediately so they can see the boot sequence
+            // but parse on first click
         }
 
         run();

@@ -31,7 +31,6 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build WebAssembly
-        working-directory: parson_port
         run: wasm-pack build --target web --out-dir docs/pkg
 
       - name: Setup Pages
@@ -40,7 +39,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'parson_port/docs'
+          path: 'docs'
 
   deploy:
     environment:

@@ -13,18 +13,22 @@
     <div class="container">
         <header>
             <h1>Parson-Rust Engine</h1>
-            <p class="subtitle">100% Memory Safe. 3x Faster. Zero Trade-offs.</p>
+            <p class="subtitle">Simplicity & Safety. 3x Faster. Zero Trade-offs.</p>
             <div class="badges">
                 <span class="badge safe">#![forbid(unsafe_code)]</span>
-                <span class="badge wasm">WebAssembly Powered</span>
+                <span class="badge wasm">WebAssembly Native</span>
             </div>
         </header>
 
         <div class="editor-grid">
+            <!-- Left: Editor -->
             <div class="panel">
                 <div class="panel-header">
                     <span>Input (Raw JSON)</span>
-                    <button id="format-btn" class="btn primary">Parse with Safe Rust 🚀</button>
+                    <button id="format-btn" class="btn primary">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        Execute
+                    </button>
                 </div>
                 <textarea id="json-input" spellcheck="false" placeholder="Enter JSON here...">
 {
@@ -37,11 +41,19 @@
                 </textarea>
             </div>
 
-            <div class="panel output-panel">
-                <div class="panel-header">
-                    <span>Safe Rust AST Output</span>
+            <!-- Right: Terminal Simulator -->
+            <div class="panel terminal-panel">
+                <div class="terminal-header">
+                    <div class="mac-buttons">
+                        <div class="mac-btn close"></div>
+                        <div class="mac-btn minimize"></div>
+                        <div class="mac-btn maximize"></div>
+                    </div>
+                    <span>rust@wasm-sandbox:~</span>
                 </div>
-                <pre id="json-output" class="code-block"></pre>
+                <div id="terminal-body" class="terminal-body">
+                    <!-- Terminal output goes here -->
+                </div>
             </div>
         </div>
         
@@ -53,39 +65,72 @@
     <script type="module">
         import init, { parse_and_format } from './pkg/parson_port.js';
 
+        const terminalBody = document.getElementById('terminal-body');
+        
+        function appendTerminal(text, type = "normal") {
+            const div = document.createElement("div");
+            div.className = `term-line ${type}`;
+            div.textContent = text;
+            terminalBody.appendChild(div);
+            terminalBody.scrollTop = terminalBody.scrollHeight;
+        }
+
+        async function typeWriter(text, type, speed = 10) {
+            const div = document.createElement("div");
+            div.className = `term-line ${type}`;
+            terminalBody.appendChild(div);
+            
+            for(let i = 0; i < text.length; i++) {
+                div.textContent += text.charAt(i);
+                terminalBody.scrollTop = terminalBody.scrollHeight;
+                await new Promise(r => setTimeout(r, speed));
+            }
+        }
+
         async function run() {
-            // Initialize the WebAssembly module
-            await init();
+            // Initialize the REAL WebAssembly module compiled from our Rust code
+            appendTerminal("[SYSTEM] Loading WebAssembly binary (parson_port.wasm)...", "dim");
+            const wasmInit = init();
+            await wasmInit;
+            appendTerminal("[SYSTEM] Safe Rust Engine Initialized. 100% memory safe.", "success");
+            appendTerminal("", "normal");
 
             const inputArea = document.getElementById('json-input');
-            const outputArea = document.getElementById('json-output');
             const btn = document.getElementById('format-btn');
 
-            const handleParse = () => {
+            const handleParse = async () => {
                 const input = inputArea.value;
+                
+                terminalBody.innerHTML = "";
+                appendTerminal("> Calling WebAssembly parse_and_format() function...", "cmd");
+                
                 try {
-                    // Call the Rust function compiled to Wasm
+                    // This calls the REAL Rust function in src/wasm.rs!
+                    const t0 = performance.now();
                     const result = parse_and_format(input);
-                    outputArea.textContent = result;
+                    const t1 = performance.now();
+                    
                     if (result.startsWith("Error")) {
-                        outputArea.classList.add("error-text");
+                        appendTerminal(`AST PARSE FAILED (took ${(t1-t0).toFixed(2)}ms):`, "error");
+                        appendTerminal(result, "error");
                     } else {
-                        outputArea.classList.remove("error-text");
+                        appendTerminal(`AST PARSE SUCCESS (took ${(t1-t0).toFixed(2)}ms):`, "success");
+                        appendTerminal(result, "json-out");
                     }
                 } catch (e) {
-                    outputArea.textContent = "Fatal Wasm Error: " + e;
-                    outputArea.classList.add("error-text");
+                    appendTerminal("Fatal Wasm Error: " + e, "error");
                 }
+                appendTerminal("", "normal");
             };
 
             // Parse on button click
             btn.addEventListener('click', () => {
-                btn.style.transform = 'scale(0.95)';
-                setTimeout(() => btn.style.transform = 'scale(1)', 100);
+                btn.classList.add('pulse');
+                setTimeout(() => btn.classList.remove('pulse'), 200);
                 handleParse();
             });
 
-            // Parse immediately on load
+            // Initial parse
             handleParse();
         }
 

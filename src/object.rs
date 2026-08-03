@@ -45,7 +45,7 @@ impl Object {
     /// Remove a key. Returns `true` if the key existed.
     pub fn remove(&mut self, key: &str) -> bool {
         if let Some(pos) = self.0.iter().position(|(k, _)| k == key) {
-            self.0.remove(pos);
+            self.0.swap_remove(pos);
             true
         } else {
             false

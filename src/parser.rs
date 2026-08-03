@@ -158,9 +158,13 @@ impl<'a> Parser<'a> {
             s.push(self.chars.next().unwrap());
         }
 
+        // Track whether integer part is bare '0' — C's is_decimal() rejects
+        // 0eN and -0eN (string[0]=='0' && string[1]!='.') but allows 0.XeN.
+        let mut leading_zero = false;
         match self.chars.peek() {
             Some(&'0') => {
                 s.push(self.chars.next().unwrap());
+                leading_zero = true;
             }
             Some(&('1'..='9')) => {
                 s.push(self.chars.next().unwrap());
@@ -175,7 +179,9 @@ impl<'a> Parser<'a> {
             _ => return Err(ParsonError::Parse),
         }
 
+        let mut had_dot = false;
         if let Some(&'.') = self.chars.peek() {
+            had_dot = true;
             s.push(self.chars.next().unwrap());
             let mut has_digits = false;
             while let Some(&c) = self.chars.peek() {
@@ -187,6 +193,15 @@ impl<'a> Parser<'a> {
                 }
             }
             if !has_digits {
+                return Err(ParsonError::Parse);
+            }
+        }
+
+        // C parson's is_decimal rejects 0eN and -0eN:
+        //   if (length > 1 && string[0] == '0' && string[1] != '.') return FALSE;
+        // So bare '0' or '-0' may only be followed by '.' — not 'e'/'E'.
+        if leading_zero && !had_dot {
+            if let Some(&'e') | Some(&'E') = self.chars.peek() {
                 return Err(ParsonError::Parse);
             }
         }
@@ -302,6 +317,8 @@ impl<'a> Parser<'a> {
 }
 
 pub fn parse_string(s: &str) -> Result<Value, ParsonError> {
+    // C parson skips UTF-8 BOM: if (string[0]==0xEF && string[1]==0xBB && string[2]==0xBF)
+    let s = s.strip_prefix('\u{FEFF}').unwrap_or(s);
     let mut parser = Parser::new(s, false);
     let value = parser.parse_value()?;
     parser.skip_whitespace_and_comments()?;
@@ -312,6 +329,7 @@ pub fn parse_string(s: &str) -> Result<Value, ParsonError> {
 }
 
 pub fn parse_string_with_comments(s: &str) -> Result<Value, ParsonError> {
+    let s = s.strip_prefix('\u{FEFF}').unwrap_or(s);
     let mut parser = Parser::new(s, true);
     let value = parser.parse_value()?;
     parser.skip_whitespace_and_comments()?;

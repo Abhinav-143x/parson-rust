@@ -115,3 +115,42 @@ Our north star throughout this port was **memory safety without compromise**. Ra
 * **HOW:** Changed all `"  ".repeat(...)` calls in `src/serializer.rs` to `"    ".repeat(...)` and updated the relevant serializer unit test to expect 4-space indentation.
 * **IMPACT:** Pretty-printed JSON output now exactly matches C Parson's `json_serialize_to_string_pretty()` indentation format. Like issues 13 and 14, this was invisible to our differential fuzzer and only surfaced through manual source inspection.
 
+---
+
+## 16. Post-AI-Port Deep Audit Fix: `format_number()` Rewrite [Verified by Compiling C]
+* **WHY:** Compiled a C test program (`scratch_c_fmt.c`) using `printf("%1.17g", ...)` and compared its output byte-for-byte against our Rust `format_number()`. Found 8 value mismatches:
+  1. Used `{:.17e}` (18 significant digits) instead of `{:.16e}` (17 significant digits matching C's `%1.17g`).
+  2. Negative zero `-0.0` serialized as `"0"` instead of C's `"-0"` because `(-0.0 == 0.0)` is true in IEEE 754.
+  3. Positive exponents missing `+` sign (our `e20` vs C's `e+20`).
+  4. Exponents not zero-padded to minimum 2 digits (our `e-5` vs C's `e-05`).
+  5. Extra spurious digits in mantissa for values like `1e100` and `DBL_MAX`.
+* **HOW:** Complete rewrite of `format_number()` in `src/serializer.rs`:
+  - Changed to `{:.16e}` for correct 17-significant-digit precision.
+  - Added `f64::is_sign_negative()` check for negative zero preservation.
+  - Added explicit `+` sign and `{:02}` minimum-width formatting for exponents (C99/POSIX standard).
+* **IMPACT:** Verified all 17 test values now match C `printf` output (with 2-digit minimum exponent per C99; C's MSVC uses 3-digit, but this is a platform-dependent C CRT difference, not a port bug).
+
+---
+
+## 17. Post-AI-Port Deep Audit Fix: UTF-8 BOM Support [Verified by Running Edge Cases]
+* **WHY:** C Parson's `json_parse_string()` explicitly skips the UTF-8 Byte Order Mark (`\xEF\xBB\xBF`):
+  ```c
+  if (string[0] == '\xEF' && string[1] == '\xBB' && string[2] == '\xBF') {
+      string = string + 3; /* Support for UTF-8 BOM */
+  }
+  ```
+  Our parser had no BOM handling, causing BOM-prefixed JSON files (common from Windows editors and Excel exports) to fail with `Err(Parse)`.
+* **HOW:** Added `s.strip_prefix('\u{FEFF}').unwrap_or(s)` at the top of both `parse_string()` and `parse_string_with_comments()` in `src/parser.rs`. The Rust `\u{FEFF}` is the Unicode BOM character, which in UTF-8 encoding is the same 3-byte sequence `EF BB BF`.
+* **IMPACT:** BOM-prefixed JSON now parses correctly, matching C Parson's documented behavior.
+
+---
+
+## 18. Post-AI-Port Deep Audit Fix: Reject `0eN` Number Forms [Verified by C Source Trace]
+* **WHY:** C Parson's `is_decimal()` function (called after `strtod`) rejects numbers starting with `0` unless followed by `.`:
+  ```c
+  if (length > 1 && string[0] == '0' && string[1] != '.') return PARSON_FALSE;
+  if (length > 2 && !strncmp(string, "-0", 2) && string[2] != '.') return PARSON_FALSE;
+  ```
+  This means `0e1`, `-0e1`, `0E5` are all rejected by C Parson, even though they are mathematically valid (all equal zero). Our parser accepted them because `parse_number` allowed the exponent section after bare `0`.
+* **HOW:** Added `leading_zero` and `had_dot` tracking flags to `parse_number()` in `src/parser.rs`. If the integer part is bare `0` and no decimal point was parsed, the exponent section is blocked with `Err(Parse)`. Values like `0.0e1` remain accepted because `had_dot` is true.
+* **IMPACT:** Number parsing now exactly matches C Parson's `is_decimal()` validation for all leading-zero edge cases. Verified that `0`, `-0`, `0.0`, `-0.0`, `0.0e1` remain accepted while `0e1`, `-0e1`, `0E5` are correctly rejected.

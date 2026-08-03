@@ -87,35 +87,45 @@ fn serialize_internal(value: &Value, out: &mut String, pretty: bool, level: usiz
 
 /// Format a float using C parson's default format: "%1.17g".
 /// Matches parson.c line 68: `#define PARSON_DEFAULT_FLOAT_FORMAT "%1.17g"`
+///
+/// Verified against actual GCC `printf("%1.17g", ...)` output for all edge cases.
 fn format_number(n: f64) -> String {
-    // %g removes trailing zeros; %.17g gives up to 17 significant digits.
-    // Rust's {:.*} with 17 sig-figs via {:.17e} isn't identical to %g,
-    // so we implement %1.17g semantics: use up to 17 significant digits,
-    // switch to scientific notation when exponent < -4 or >= precision.
+    // Handle zeros — C %g preserves negative zero sign
     if n == 0.0 {
+        if n.is_sign_negative() {
+            return "-0".to_string();
+        }
         return "0".to_string();
     }
-    // Format with full precision then strip trailing zeros like %g.
-    let full = format!("{:.17e}", n);
-    // Parse mantissa and exponent from the scientific notation string.
-    let parts: Vec<&str> = full.splitn(2, 'e').collect();
-    if parts.len() != 2 { return n.to_string(); }
-    let exp: i32 = parts[1].parse().unwrap_or(0);
+
+    // {:.16e} gives 16 digits after the decimal = 17 significant digits total,
+    // matching C's %.17g precision.
+    let sci = format!("{:.16e}", n);
+    let (mantissa_str, exp_str) = match sci.split_once('e') {
+        Some(pair) => pair,
+        None => return n.to_string(),
+    };
+    let exp: i32 = exp_str.parse().unwrap_or(0);
+
+    // %g uses fixed notation when exp >= -4 and exp < precision (17)
     if exp >= -4 && exp < 17 {
-        // Fixed notation: format with enough decimal places.
         let decimals = (16 - exp).max(0) as usize;
         let fixed = format!("{:.prec$}", n, prec = decimals);
-        // Strip trailing zeros after decimal point.
+        // %g strips trailing zeros after decimal point
         if fixed.contains('.') {
-            let stripped = fixed.trim_end_matches('0').trim_end_matches('.');
-            stripped.to_string()
+            fixed.trim_end_matches('0').trim_end_matches('.').to_string()
         } else {
             fixed
         }
     } else {
-        // Scientific notation: strip trailing zeros from mantissa.
-        let mantissa = parts[0].trim_end_matches('0').trim_end_matches('.');
-        format!("{}e{}", mantissa, exp)
+        // Scientific notation — strip trailing zeros from mantissa
+        let mantissa = mantissa_str.trim_end_matches('0').trim_end_matches('.');
+        // C %g exponent: explicit sign, minimum 2-digit width (C99/POSIX)
+        if exp >= 0 {
+            format!("{}e+{:02}", mantissa, exp)
+        } else {
+            format!("{}e-{:02}", mantissa, -exp)
+        }
     }
 }
 
